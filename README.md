@@ -37,17 +37,30 @@ Certifique-se de ter o Python instalado. O projeto foi testado em versões 3.12+
 Abra o seu terminal, clone o repositório e instale as dependências:
 
 ```bash
-git clone [https://github.com/SEU_USUARIO/artemis-mission-control.git](https://github.com/SEU_USUARIO/artemis-mission-control.git)
+git clone [https://github.com/grandvini/artemis-mission-control.git](https://github.com/grandvini/artemis-mission-control.git)
 cd artemis-mission-control
 pip install -r requirements.txt
+``` `
 
 ### 2. Configurar o Telegram (Opcional)
-Se desejar receber os alertas no seu celular, edite o arquivo `dashboard_artemis.py` e insira as suas credenciais nas variáveis `bot_token` e `chat_id`. 
+Se desejar receber os alertas no seu celular, edite o arquivo `dashboard_artemis.py` e insira as suas credenciais nas variáveis `bot_token` e `chat_id`.
 
 ### 3. Rodar a Aplicação
 Se você estiver no Windows, basta dar dois cliques no arquivo:
 👉 `run.bat`
-
 Ou inicie manualmente via terminal:
 ```bash
 streamlit run dashboard_artemis.py
+``` `
+O dashboard abrirá automaticamente no seu navegador no endereço localhost:8501.
+
+## 🛠️ Tecnologias Utilizadas
+
+- **Streamlit:** Criação rápida do front-end e gestão do estado de reatividade.
+- **Plotly:** Geração do velocímetro analógico e gráficos de área dinâmicos.
+- **Astroquery / Astropy:** Tratamento astronômico dos pacotes recebidos do JPL Horizons.
+- **Pandas:** Limpeza, conversão e manipulação de séries temporais para alinhar o fuso horário (UTC para SP).
+
+---
+
+Desenvolvido com ☕ e Matemática Orbital durante o voo da Artemis II.
