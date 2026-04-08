@@ -40,7 +40,7 @@ Abra o seu terminal, clone o repositório e instale as dependências:
 git clone [https://github.com/grandvini/artemis-mission-control.git](https://github.com/grandvini/artemis-mission-control.git)
 cd artemis-mission-control
 pip install -r requirements.txt
-``` `
+```
 
 ### 2. Configurar o Telegram (Opcional)
 Se desejar receber os alertas no seu celular, edite o arquivo `dashboard_artemis.py` e insira as suas credenciais nas variáveis `bot_token` e `chat_id`.
@@ -51,7 +51,7 @@ Se você estiver no Windows, basta dar dois cliques no arquivo:
 Ou inicie manualmente via terminal:
 ```bash
 streamlit run dashboard_artemis.py
-``` `
+```
 O dashboard abrirá automaticamente no seu navegador no endereço localhost:8501.
 
 ## 🛠️ Tecnologias Utilizadas
