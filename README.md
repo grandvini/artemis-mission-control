@@ -41,10 +41,12 @@ git clone [https://github.com/SEU_USUARIO/artemis-mission-control.git](https://g
 cd artemis-mission-control
 pip install -r requirements.txt
 
-### **2. Configurar o Telegram (Opcional)**
+---
+
+**### 2. Configurar o Telegram (Opcional)**
 Se desejar receber os alertas no seu celular, edite o arquivo dashboard_artemis.py e insira as suas credenciais nas variáveis bot_token e chat_id.
 
-### **3. Rodar a Aplicação**
+**### 3. Rodar a Aplicação**
 Se você estiver no Windows, basta dar dois cliques no arquivo:
 👉 run.bat
 Ou inicie manualmente via terminal:
@@ -54,7 +56,7 @@ streamlit run dashboard_artemis.py
 
 O dashboard abrirá automaticamente no seu navegador no endereço localhost:8501.
 
-### **🛠️ Tecnologias Utilizadas**
+**### 🛠️ Tecnologias Utilizadas**
 > Streamlit: Criação rápida do front-end e gestão do estado de reatividade.
 > Plotly: Geração do velocímetro analógico e gráficos de área dinâmicos.
 > Astroquery / Astropy: Tratamento astronômico dos pacotes recebidos do JPL Horizons.
