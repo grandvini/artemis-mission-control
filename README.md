@@ -13,6 +13,7 @@ Um dashboard interativo e em tempo real construído em Python para monitorar a t
 
 > **Nota:** Adicione aqui um print bem bonito do seu painel rodando!
 > *(Arraste uma imagem do dashboard aberto no seu navegador para dentro do GitHub e ele vai gerar o link automaticamente aqui).*
+<img width="1916" height="952" alt="Captura de tela 2026-04-09 235617" src="https://github.com/user-attachments/assets/17c3f3c9-881f-4e10-94ff-2639794d4d61" />
 
 ---
 
