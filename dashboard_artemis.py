@@ -15,6 +15,10 @@ conf.timeout = 120  # Dá 2 minutos de paciência para o servidor da NASA
 # --- CONFIGURAÇÕES DA PÁGINA ---
 st.set_page_config(page_title="Artemis II Mission Control", page_icon="🚀", layout="wide")
 
+# --- CONTROLE DE ALERTAS ---
+if "splashdown_alert_sent" not in st.session_state:
+    st.session_state.splashdown_alert_sent = False
+
 # URL do seu Webhook (opcional)
 WEBHOOK_URL = "" 
 
@@ -146,7 +150,7 @@ TARGET_SPLASHDOWN = datetime(2026, 4, 11, 0, 7, 0, tzinfo=timezone.utc)
 now_utc = datetime.now(timezone.utc)
 time_remaining = TARGET_SPLASHDOWN - now_utc
 
-# Lógica do Cronômetro
+# Lógica do Cronômetro e Alerta Telegram
 if time_remaining.total_seconds() > 0:
     days = time_remaining.days
     hours, remainder = divmod(time_remaining.seconds, 3600)
@@ -155,20 +159,32 @@ if time_remaining.total_seconds() > 0:
     # Exibe o ETA com destaque visual
     st.info(f"**Tempo Restante de Voo:** {days} dias, {hours:02d} horas e {minutes:02d} minutos")
     
-    # Barra de progresso visual da viagem de volta (Aproximação de 400 mil km para zero)
-    distancia_maxima_retorno = 413145.0 # O recorde de distância que você cravou ontem
+    # --- NOVO: GATILHO DO TELEGRAM (3 HORAS PARA O POUSO) ---
+    # 3 horas = 10800 segundos. Verifica se já não enviou antes.
+    if time_remaining.total_seconds() <= 10800:
+        if not st.session_state.splashdown_alert_sent:
+            mensagem_alerta = (
+                "🚨 ALERTA TÁTICO: REENTRADA ARTEMIS II 🚨\n\n"
+                "A cápsula Orion está a menos de 3 horas do Splashdown no Pacífico!\n\n"
+                f"🔥 Velocidade de Queda: {now_data['vel_kmh']:,.0f} km/h\n"
+                f"🌍 Distância da Atmosfera: {now_data['dist_earth_km']:,.0f} km\n\n"
+                "Abra o Mission Control agora. O blackout de plasma vai começar em breve!"
+            )
+            send_alert(mensagem_alerta)
+            st.session_state.splashdown_alert_sent = True # Trava para não enviar de novo
+            
+    # Barra de progresso visual da viagem de volta
+    distancia_maxima_retorno = 413145.0
     distancia_atual = now_data['dist_earth_km']
     
     progresso_retorno = 1.0 - (distancia_atual / distancia_maxima_retorno)
-    # Garante que a barra fique entre 0 e 100%
     progresso_seguro = max(0.0, min(progresso_retorno, 1.0)) 
     
     st.progress(progresso_seguro, text="Progresso da Queda Livre rumo à Terra")
 
 else:
-    # Quando o relógio zerar, a tela muda!
     st.success("🌊 SPLASHDOWN! A tripulação da Artemis II retornou em segurança à Terra!")
-    st.balloons() # Um easter-egg visual do Streamlit para comemorar o sucesso da missão    
+    st.balloons()
 
 # --- BLOCO 1: KPIs DE RETORNO (INBOUND) ---
 st.subheader("🎯 Telemetria de Retorno (Inbound)")
@@ -337,18 +353,21 @@ st.sidebar.subheader("📋 Resumo da Operação")
 st.sidebar.info("""
 **Missão:** Artemis II
 **Tripulação:** Wiseman, Glover, Koch, Hansen
-**Objetivo Atual:** Flyby de Retorno Livre
-**Distância Máx. Esperada:** ~10.000 km da superfície
+**Fase Atual:** Retorno à Terra (Inbound)
+**Alvo de Pouso:** Oceano Pacífico (Costa de San Diego)
 """)
 
-# Barra de Progresso do Flyby (Baseada na distância)
-# Quanto mais perto de 10.000 km, mais cheia a barra fica.
-distancia_atual = now_data['dist_moon_km']
-distancia_inicial = 384400 # Distância média Terra-Lua
-progresso = 1.0 - (min(distancia_atual, distancia_inicial) / distancia_inicial)
-
+# --- BARRA DE PROGRESSO DO RETORNO (SIDEBAR) ---
 st.sidebar.markdown("**Progresso de Retorno a Terra:**")
-st.sidebar.progress(max(0.0, min(progresso, 1.0)))
+
+# Calculando o progresso da queda livre (de 413.145 km até 0)
+distancia_atual_terra = now_data['dist_earth_km']
+distancia_recorde = 413145.0 # O recorde batido no lado oculto da Lua
+
+progresso_retorno_sidebar = 1.0 - (distancia_atual_terra / distancia_recorde)
+
+# O Streamlit exige que o valor do progress fique exatamente entre 0.0 e 1.0
+st.sidebar.progress(max(0.0, min(progresso_retorno_sidebar, 1.0)))
 
 if auto_refresh:
     st.sidebar.caption("⏳ Atualizando em background...")
