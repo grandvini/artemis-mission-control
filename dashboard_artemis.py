@@ -80,6 +80,29 @@ def get_dsn_status():
     except:
         return None
 
+# --- METEOROLOGIA OCEÂNICA (CACHE: 10 MIN) ---
+@st.cache_data(ttl=600)
+def get_splashdown_weather():
+    try:
+        url = "https://api.open-meteo.com/v1/forecast?latitude=32.7157&longitude=-117.1611&current_weather=true"
+        
+        # O disfarce para a API não bloquear nosso script Python
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'
+        }
+        
+        # Aumentei a paciência (timeout) de 5 para 10 segundos
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status() 
+        
+        data = response.json()
+        return data['current_weather']
+        
+    except Exception as e:
+        # Se der erro agora, o Streamlit vai gritar o motivo no canto da tela!
+        st.toast(f"Erro na API de Clima: {e}", icon="⚠️")
+        return None
+
 # --- EXTRAÇÃO DE DADOS (CACHE: 5 MINUTOS) ---    
 @st.cache_data(ttl=300)
 def fetch_mission_data():
@@ -184,7 +207,32 @@ if time_remaining.total_seconds() > 0:
 
 else:
     st.success("🌊 SPLASHDOWN! A tripulação da Artemis II retornou em segurança à Terra!")
-    st.balloons()
+    st.balloons()  
+
+# --- CÁLCULOS ORBITAIS AVANÇADOS ---
+RAIO_TERRA_KM = 6371.0
+# Subtrai o núcleo da Terra para sabermos a altitude real da nave
+altitude_superficie = max(0.0, now_data['dist_earth_km'] - RAIO_TERRA_KM)
+
+# 1 Mach = 1234.8 km/h (ao nível do mar)
+mach_atual = now_data['vel_kmh'] / 1234.8
+
+# Cálculo da Força G (Desaceleração Bruta)
+try:
+    # Pegamos a velocidade de 1 minuto atrás para ver o quão violenta é a frenagem
+    v_prev_kmh = df.loc[current_idx - 1, 'vel_kmh']
+    delta_v_ms = (now_data['vel_kmh'] - v_prev_kmh) / 3.6
+    
+    # Nosso intervalo (step) na API é de 60 segundos
+    aceleracao_ms2 = delta_v_ms / 60.0
+    
+    # 1G = 9.80665 m/s². Usamos abs() porque é a força de esmagamento sentida
+    forca_g = abs(aceleracao_ms2 / 9.80665) 
+    
+    # Somamos 1.0G (gravidade normal) para o voo de cruzeiro
+    forca_g_display = max(1.0, forca_g)
+except:
+    forca_g_display = 1.0 # Falback de segurança
 
 # --- BLOCO 1: KPIs DE RETORNO (INBOUND) ---
 st.subheader("🎯 Telemetria de Retorno (Inbound)")
@@ -192,20 +240,36 @@ st.subheader("🎯 Telemetria de Retorno (Inbound)")
 col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
-    # A velocidade vai começar a subir absurdamente até os ~40.000 km/h da reentrada
-    st.metric(label="Velocidade de Retorno", value=f"{now_data['vel_kmh']:,.0f} km/h".replace(',', '.'))
+    # A Métrica com o Mach Meter embutido!
+    st.metric(label="Velocidade de Retorno", 
+              value=f"{now_data['vel_kmh']:,.0f} km/h".replace(',', '.'),
+              delta=f"Mach {mach_atual:.1f}", delta_color="off")
 
 with col2:
-    # A distância da Terra agora é o nosso cronômetro regressivo
-    st.metric(label="Distância da Terra", value=f"{now_data['dist_earth_km']:,.0f} km".replace(',', '.'))
+    # Mostrando a Altitude Real como destaque e a Distância Geocêntrica (Núcleo) em letras mais pequenas
+    dist_nucleo = f"{now_data['dist_earth_km']:,.0f} km".replace(',', '.')
+    st.metric(label="Altitude Real (Superfície)", 
+              value=f"{altitude_superficie:,.0f} km".replace(',', '.'),
+              delta=f"Dist. Núcleo: {dist_nucleo}", delta_color="off")
 
 with col3:
-    # A Lua agora fica em segundo plano
-    st.metric(label="Distância da Lua", value=f"{now_data['dist_moon_km']:,.0f} km".replace(',', '.'))
+    # Sai a Lua, entra o G-Meter!
+    alerta_g = "Gravidade Normal" if forca_g_display < 1.5 else "ALTA COMPRESSÃO ⚠️"
+    cor_g = "off" if forca_g_display < 1.5 else "inverse"
+    
+    st.metric(label="Força G (Desaceleração)", 
+              value=f"{forca_g_display:.2f} G", 
+              delta=alerta_g, delta_color=cor_g)
 
 with col4:
-    # Novo Status: Modo de Cruzeiro
-    st.metric(label="Status da Fase", value="Cruzeiro Terrestre", delta="Retorno Iniciado")
+    clima = get_splashdown_weather()
+    if clima:
+        vento = clima['windspeed']
+        # Se o vento passar de 30 km/h, os helicópteros de resgate têm problemas
+        status_mar = "SEGURO 🟢" if vento < 30.0 else "ALERTA MARINHA 🟡"
+        st.metric(label="Clima no Pacífico", value=f"{clima['temperature']}°C", delta=f"Vento: {vento} km/h | {status_mar}", delta_color="off")
+    else:
+        st.metric(label="Clima no Pacífico", value="Buscando...", delta="Aguardando satélite")
 
 with col5:
     dsn_data = get_dsn_status()
@@ -226,7 +290,16 @@ with st.expander("ℹ️ O que significa a Antena e a Banda?"):
     * **Banda Ka:** A banda super larga de rádio, acionada para altíssimos volumes de dados.
     
     *Nota: O vídeo em alta resolução (4K) da missão utiliza o sistema O2O (Laser Óptico), que opera independente das antenas de rádio da DSN.*
-    """)            
+    """)     
+
+# --- ALERTA TÁTICO: PLASMA BLACKOUT ---
+# A 122 km de altitude a atmosfera fica densa e a nave pega fogo.
+if altitude_superficie <= 122.0 and altitude_superficie > 5.0:
+    st.error("""
+    🔥 **⚠️ ENTRY INTERFACE ATINGIDA (122 km): INÍCIO DO PLASMA BLACKOUT!** A fricção atmosférica gerou um escudo de plasma a 2.700 °C ao redor da cápsula Orion. 
+    **PERDA TOTAL DE TELEMETRIA E RÁDIO CONFIRMADA.** A antena DSN está cega. 
+    Aguardando abertura dos paraquedas...
+    """, icon="🚨")
 
 st.divider()
 
@@ -268,6 +341,41 @@ with col_gauge:
         plot_bgcolor="rgba(0,0,0,0)"
     )
     st.plotly_chart(fig_gauge, use_container_width=True)
+
+st.divider()
+
+# --- BLOCO 1.2: OPERAÇÕES DE RESGATE (SPLASHDOWN) ---
+st.subheader("🪂 Operações de Resgate e Pouso (Zona de Exclusão)")
+
+col_para, col_mapa = st.columns([1, 2])
+
+with col_para:
+    st.markdown("**Sequenciador Autônomo de Paraquedas**")
+    st.markdown("<span style='font-size: 0.9em; color: gray;'>O computador de bordo (Flight Controller) aciona os sistemas de frenagem baseado exclusivamente na queda de altitude.</span>", unsafe_allow_html=True)
+    
+    # Função auxiliar para marcar o check verde dinamicamente
+    def check(target):
+        return "✅" if altitude_superficie <= target else "⏳"
+        
+    st.info(f"""
+    **Altitude Atual:** {altitude_superficie:,.1f} km
+    
+    * {check(122.0)} **122.0 km** - Entry Interface (Plasma Blackout)
+    * {check(7.3)} **7.3 km** - Ejeção da Capa Protetora
+    * {check(7.0)} **7.0 km** - Paraquedas de Frenagem (Drogue)
+    * {check(2.5)} **2.5 km** - Paraquedas Principais (Main)
+    * {check(0.0)} **0.0 km** - Impacto na Água (Splashdown)
+    """)
+    
+with col_mapa:
+    st.markdown("**Mapa Tático: Costa de San Diego (USS San Diego)**")
+    # Ponto de resgate estimado da Marinha: Alto mar, oeste da Califórnia
+    df_mapa = pd.DataFrame({
+        'lat': [32.6000],
+        'lon': [-117.6000]
+    })
+    # O Streamlit renderiza um mapa de satélite interativo com zoom automático
+    st.map(df_mapa, zoom=7, use_container_width=True)
 
 st.divider()
 
