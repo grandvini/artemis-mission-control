@@ -19,7 +19,7 @@ st.set_page_config(page_title="Artemis II Mission Control", page_icon="🚀", la
 WEBHOOK_URL = "" 
 
 def send_alert(message):
-    bot_token = "SEU_TOKEN_AQUI"
+    bot_token = "SEU_BOT_TOKEN_AQUI"
     chat_id = "SEU_TOKEN_AQUI"
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     try:
@@ -139,9 +139,8 @@ with st.spinner("Sincronizando com JPL Horizons..."):
 # --- BLOCO 0: CRONÔMETRO DE SPLASHDOWN (ETA) ---
 st.markdown("### ⏱️ Contagem Regressiva para o Pouso (Splashdown)")
 
-# A data oficial do Splashdown no Pacífico calculada pela mecânica orbital do JPL
-# Ajuste as horas para bater exatamente com a previsão da sua simulação atual
-TARGET_SPLASHDOWN = datetime(2026, 4, 10, 17, 0, 0, tzinfo=timezone.utc)
+# A data oficial do Splashdown confirmada pela NASA (21:07 SP = 00:07 UTC do dia 11)
+TARGET_SPLASHDOWN = datetime(2026, 4, 11, 0, 7, 0, tzinfo=timezone.utc)
 
 # Puxando o horário UTC exato de agora (usando a sintaxe moderna que acabamos de corrigir)
 now_utc = datetime.now(timezone.utc)
@@ -348,7 +347,7 @@ distancia_atual = now_data['dist_moon_km']
 distancia_inicial = 384400 # Distância média Terra-Lua
 progresso = 1.0 - (min(distancia_atual, distancia_inicial) / distancia_inicial)
 
-st.sidebar.markdown("**Progresso de Aproximação Lunar:**")
+st.sidebar.markdown("**Progresso de Retorno a Terra:**")
 st.sidebar.progress(max(0.0, min(progresso, 1.0)))
 
 if auto_refresh:
