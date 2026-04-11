@@ -23,8 +23,8 @@ if "splashdown_alert_sent" not in st.session_state:
 WEBHOOK_URL = "" 
 
 def send_alert(message):
-    bot_token = "SEU_BOT_TOKEN_AQUI"
-    chat_id = "SEU_TOKEN_AQUI"
+    bot_token = "TOKEN_BOT"
+    chat_id = "TOKEN_CHAT"
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     try:
         requests.post(url, json={"chat_id": chat_id, "text": message})
@@ -106,18 +106,28 @@ def get_splashdown_weather():
 # --- EXTRAÇÃO DE DADOS (CACHE: 5 MINUTOS) ---    
 @st.cache_data(ttl=300)
 def fetch_mission_data():
-    # O jeito moderno e à prova de falhas de pegar o UTC agora:
     now = datetime.now(timezone.utc)
     
-    # 🚨 MODO DE EMERGÊNCIA: Pede apenas 1 hora do passado e 4 horas do futuro
-    # Isso reduz o payload em quase 70% e a NASA processa muito mais rápido!
     start_time = now - timedelta(hours=1)
     stop_time = now + timedelta(hours=4)
     
+    # 🚨 HOTFIX: Trava de Fim de Missão. 
+    # O banco de dados do JPL acaba no momento do Splashdown.
+    max_api_date = datetime(2026, 4, 10, 23, 54, 0, tzinfo=timezone.utc)
+    
+    # Se a nossa projeção de +4 horas ultrapassar o fim da missão, travamos no limite
+    if stop_time > max_api_date:
+        stop_time = max_api_date
+        
+    # Se o momento atual já passou do fim da missão, congelamos a tela na última hora de queda
+    if start_time >= max_api_date:
+        start_time = max_api_date - timedelta(hours=1)
+        stop_time = max_api_date
+
     epochs = {
         'start': start_time.strftime('%Y-%m-%d %H:%M'),
         'stop': stop_time.strftime('%Y-%m-%d %H:%M'),
-        'step': '1m' # Mantemos a precisão de 1 minuto!
+        'step': '1m'
     }
     
     # Centro da Terra (500@399) e Centro da Lua (500@301)
@@ -384,18 +394,6 @@ st.subheader("📺 Multi-Feed de Comunicação (Vídeo)")
 
 # O truque das colunas: [1, 1.5, 1] cria margens nas pontas e um espaço central
 col_esq, col_meio, col_dir = st.columns([1, 1.5, 1])
-
-with col_meio:
-    # Centralizando o título com HTML simples
-    st.markdown("<div style='text-align: center;'><b>Cobertura Oficial (Mission Control)</b></div>", unsafe_allow_html=True)
-    
-    # Colocamos o width em "450" e height em "350" (bem mais quadradinho)
-    # E o <div style="display: flex; justify-content: center;"> garante que fique cravado no meio
-    components.html("""
-    <div style="display: flex; justify-content: center;">
-        <iframe width="450" height="350" src="https://www.youtube.com/embed/m3kR2KK8TEs?autoplay=1&mute=1" title="Official Broadcast" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-    </div>
-    """, height=360)
 
 st.divider()
 
